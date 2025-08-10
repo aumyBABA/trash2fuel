@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CO₂ & Biogas Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 1rem;
+    background: #1e1e1e;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  header div {
+    text-align: center;
+  }
+  header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #9be564;
+  }
+  .chart-container {
+    width: 90%;
+    margin: 2rem auto;
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  }
+  canvas {
+    background: #181818;
+    border-radius: 8px;
+    padding: 0.5rem;
+  }
+  /* Alarm overlay */
+  #alarmOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(255, 0, 0, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: white;
+    font-size: 2rem;
+    z-index: 9999;
+    animation: flash 1s infinite;
+  }
+  @keyframes flash {
+    0%, 100% { background: rgba(255, 0, 0, 0.9); }
+    50% { background: rgba(200, 0, 0, 0.6); }
+  }
+  #dismissBtn {
+    background: #fff;
+    color: red;
+    padding: 0.7rem 1.5rem;
+    font-size: 1rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h2>CO₂ Saved</h2>
+    <p id="co2Total">0 kg</p>
+  </div>
+  <div>
+    <h2>Points</h2>
+    <p id="points">0</p>
+  </div>
+</header>
+
+<div class="chart-container">
+  <h3 style="color:#9be564;text-align:center;">CO₂ Saved Over Time</h3>
+  <canvas id="co2Chart" height="150"></canvas>
+</div>
+
+<div class="chart-container">
+  <h3 style="color:#9be564;text-align:center;">Biogas Produced Over Time</h3>
+  <canvas id="biogasChart" height="150"></canvas>
+</div>
+
+<div id="alarmOverlay">
+  🚨 Device Malfunction Detected 🚨
+  <button id="dismissBtn">Dismiss</button>
+</div>
+
+<script>
+  // Initial values
+  let co2Total = 0;
+  let points = 0;
+  let timeLabels = [];
+  let co2Data = [];
+  let biogasData = [];
+
+  // CO₂ Chart
+  const co2Ctx = document.getElementById('co2Chart').getContext('2d');
+  const co2Chart = new Chart(co2Ctx, {
+    type: 'bar',
+    data: {
+      labels: timeLabels,
+      datasets: [{
+        label: 'CO₂ Saved (kg)',
+        data: co2Data,
+        backgroundColor: '#9be564'
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Biogas Chart
+  const biogasCtx = document.getElementById('biogasChart').getContext('2d');
+  const biogasChart = new Chart(biogasCtx, {
+    type: 'bar',
+    data: {
+      labels: timeLabels,
+      datasets: [{
+        label: 'Biogas Produced (m³)',
+        data: biogasData,
+        backgroundColor: '#64e5b3'
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Simulate updates
+  setInterval(() => {
+    const now = new Date().toLocaleTimeString();
+    const co2Saved = +(Math.random() * 2 + 1).toFixed(2); // realistic fluctuation
+    const biogasProduced = +(Math.random() * 1.5 + 0.5).toFixed(2);
+
+    co2Total += co2Saved;
+    points += Math.floor(co2Saved * 10); // reward logic
+
+    timeLabels.push(now);
+    co2Data.push(co2Saved);
+    biogasData.push(biogasProduced);
+
+    if (timeLabels.length > 8) {
+      timeLabels.shift();
+      co2Data.shift();
+      biogasData.shift();
+    }
+
+    document.getElementById('co2Total').innerText = co2Total.toFixed(2) + ' kg';
+    document.getElementById('points').innerText = points;
+
+    co2Chart.update();
+    biogasChart.update();
+
+    // Simulate random malfunction
+    if (Math.random() < 0.05) {
+      document.getElementById('alarmOverlay').style.display = 'flex';
+    }
+  }, 2000);
+
+  document.getElementById('dismissBtn').addEventListener('click', () => {
+    document.getElementById('alarmOverlay').style.display = 'none';
+  });
+</script>
+
+</body>
+</html>
