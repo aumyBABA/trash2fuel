@@ -1,186 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CO₂ & Biogas Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  body {
-    background-color: #121212;
-    color: #e0e0e0;
-    font-family: "Segoe UI", sans-serif;
-    margin: 0;
-    padding: 0;
-  }
-  header {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 1rem;
-    background: #1e1e1e;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  }
-  header div {
-    text-align: center;
-  }
-  header h2 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #9be564;
-  }
-  .chart-container {
-    width: 90%;
-    margin: 2rem auto;
-    background: #1e1e1e;
-    padding: 1rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
-  }
-  canvas {
-    background: #181818;
-    border-radius: 8px;
-    padding: 0.5rem;
-  }
-  /* Alarm overlay */
-  #alarmOverlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(255, 0, 0, 0.9);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    color: white;
-    font-size: 2rem;
-    z-index: 9999;
-    animation: flash 1s infinite;
-  }
-  @keyframes flash {
-    0%, 100% { background: rgba(255, 0, 0, 0.9); }
-    50% { background: rgba(200, 0, 0, 0.6); }
-  }
-  #dismissBtn {
-    background: #fff;
-    color: red;
-    padding: 0.7rem 1.5rem;
-    font-size: 1rem;
-    margin-top: 1rem;
-    cursor: pointer;
-    border: none;
-    border-radius: 5px;
-  }
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: #121212;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px;
+    }
+    header {
+        width: 100%;
+        background-color: #1E1E1E;
+        padding: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 10px;
+    }
+    .stat {
+        font-size: 1rem;
+        margin: 5px;
+    }
+    .btn {
+        background-color: #00bfa5;
+        border: none;
+        padding: 10px 15px;
+        margin: 5px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: background 0.3s;
+    }
+    .btn:hover {
+        background-color: #009e8c;
+    }
+    .chart-container {
+        width: 100%;
+        max-width: 800px;
+        margin: 20px 0;
+    }
+    #alarm {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(255, 0, 0, 0.9);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+        font-size: 2rem;
+        animation: blink 1s infinite alternate;
+    }
+    @keyframes blink {
+        0% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+    #alarm button {
+        background: white;
+        color: red;
+        font-weight: bold;
+        border: none;
+        padding: 10px 15px;
+        font-size: 1.2rem;
+        border-radius: 5px;
+        margin-top: 20px;
+        cursor: pointer;
+    }
+    @media (max-width: 600px) {
+        .stat {
+            font-size: 0.9rem;
+        }
+        header {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h2>CO₂ Saved</h2>
-    <p id="co2Total">0 kg</p>
-  </div>
-  <div>
-    <h2>Points</h2>
-    <p id="points">0</p>
-  </div>
+    <div class="stat">CO₂ Saved: <span id="co2Value">0</span> kg</div>
+    <div class="stat">Points: <span id="points">0</span></div>
+    <div>
+        <button class="btn" onclick="triggerMalfunction()">Trigger Malfunction</button>
+        <button class="btn" onclick="redeemPoints()">Redeem Points</button>
+    </div>
 </header>
 
 <div class="chart-container">
-  <h3 style="color:#9be564;text-align:center;">CO₂ Saved Over Time</h3>
-  <canvas id="co2Chart" height="150"></canvas>
+    <canvas id="co2Chart"></canvas>
 </div>
-
 <div class="chart-container">
-  <h3 style="color:#9be564;text-align:center;">Biogas Produced Over Time</h3>
-  <canvas id="biogasChart" height="150"></canvas>
+    <canvas id="biogasChart"></canvas>
 </div>
 
-<div id="alarmOverlay">
-  🚨 Device Malfunction Detected 🚨
-  <button id="dismissBtn">Dismiss</button>
+<div id="alarm">
+    🚨 DEVICE MALFUNCTION 🚨
+    <button onclick="closeAlarm()">Dismiss</button>
 </div>
 
 <script>
-  // Initial values
-  let co2Total = 0;
-  let points = 0;
-  let timeLabels = [];
-  let co2Data = [];
-  let biogasData = [];
+let co2Saved = 0;
+let points = 0;
+let timeLabels = [];
+let co2Data = [];
+let biogasData = [];
 
-  // CO₂ Chart
-  const co2Ctx = document.getElementById('co2Chart').getContext('2d');
-  const co2Chart = new Chart(co2Ctx, {
+const co2Chart = new Chart(document.getElementById('co2Chart'), {
     type: 'bar',
     data: {
-      labels: timeLabels,
-      datasets: [{
-        label: 'CO₂ Saved (kg)',
-        data: co2Data,
-        backgroundColor: '#9be564'
-      }]
+        labels: timeLabels,
+        datasets: [{
+            label: 'CO₂ Saved (kg)',
+            data: co2Data,
+            backgroundColor: '#00bfa5'
+        }]
     },
-    options: {
-      responsive: true,
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      scales: { y: { beginAtZero: true } }
-    }
-  });
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
 
-  // Biogas Chart
-  const biogasCtx = document.getElementById('biogasChart').getContext('2d');
-  const biogasChart = new Chart(biogasCtx, {
+const biogasChart = new Chart(document.getElementById('biogasChart'), {
     type: 'bar',
     data: {
-      labels: timeLabels,
-      datasets: [{
-        label: 'Biogas Produced (m³)',
-        data: biogasData,
-        backgroundColor: '#64e5b3'
-      }]
+        labels: timeLabels,
+        datasets: [{
+            label: 'Biogas Produced (m³)',
+            data: biogasData,
+            backgroundColor: '#ffb300'
+        }]
     },
-    options: {
-      responsive: true,
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      scales: { y: { beginAtZero: true } }
-    }
-  });
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
 
-  // Simulate updates
-  setInterval(() => {
+function updateCharts() {
     const now = new Date().toLocaleTimeString();
-    const co2Saved = +(Math.random() * 2 + 1).toFixed(2); // realistic fluctuation
-    const biogasProduced = +(Math.random() * 1.5 + 0.5).toFixed(2);
+    const co2Increment = (Math.random() * 0.5 + 0.1).toFixed(2);
+    const biogasIncrement = (Math.random() * 0.3 + 0.05).toFixed(2);
 
-    co2Total += co2Saved;
-    points += Math.floor(co2Saved * 10); // reward logic
+    co2Saved += parseFloat(co2Increment);
+    points += Math.floor(parseFloat(co2Increment) * 10);
 
     timeLabels.push(now);
-    co2Data.push(co2Saved);
-    biogasData.push(biogasProduced);
+    co2Data.push(co2Saved.toFixed(2));
+    biogasData.push((biogasData.length > 0 ? parseFloat(biogasData[biogasData.length - 1]) : 0) + parseFloat(biogasIncrement));
 
-    if (timeLabels.length > 8) {
-      timeLabels.shift();
-      co2Data.shift();
-      biogasData.shift();
+    if (timeLabels.length > 10) {
+        timeLabels.shift();
+        co2Data.shift();
+        biogasData.shift();
     }
 
-    document.getElementById('co2Total').innerText = co2Total.toFixed(2) + ' kg';
-    document.getElementById('points').innerText = points;
+    document.getElementById('co2Value').textContent = co2Saved.toFixed(2);
+    document.getElementById('points').textContent = points;
 
     co2Chart.update();
     biogasChart.update();
+}
 
-    // Simulate random malfunction
-    if (Math.random() < 0.05) {
-      document.getElementById('alarmOverlay').style.display = 'flex';
+function triggerMalfunction() {
+    document.getElementById('alarm').style.display = 'flex';
+}
+
+function closeAlarm() {
+    document.getElementById('alarm').style.display = 'none';
+}
+
+function redeemPoints() {
+    if (points >= 10) {
+        points -= 10;
+        alert("✅ You redeemed 10 points!");
+    } else {
+        alert("❌ Not enough points to redeem!");
     }
-  }, 2000);
+    document.getElementById('points').textContent = points;
+}
 
-  document.getElementById('dismissBtn').addEventListener('click', () => {
-    document.getElementById('alarmOverlay').style.display = 'none';
-  });
+setInterval(updateCharts, 2000);
 </script>
 
 </body>
